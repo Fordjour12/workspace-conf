@@ -79,3 +79,69 @@
   "when": "editorTextFocus && editorLangId == 'todo'"
 },
 ]
+
+
+//windows key bindidngs it wired
+// Place your key bindings in this file to override the defaults
+{
+
+[
+	{
+		"key": "tab",
+		"command": "editor.action.indentLines",
+		"when": "editorTextFocus && !editorReadonly"
+	},
+	{
+		"key": "tab",
+		"command": "workbench.action.nextEditor"
+	},
+	{
+		"key": "shitf+tab",
+		"command": "workbench.action.previousEditor"
+	},
+	{
+		"key": "ctrl+]",
+		"command": "-editor.action.indentLines",
+		"when": "editorTextFocus && !editorReadonly"
+	},
+	{
+		"key": "ctrl+",
+		"command": "-editor.action.indentLines",
+		"when": "editorTextFocus && !editorReadonly"
+	},
+	{
+		"key": "tab",
+		"command": "selectNextSuggestion",
+		"when": "suggestWidgetMultipleSuggestions && suggestWidgetVisible && textInputFocus"
+	},
+	{
+		"key": "ctrl+down",
+		"command": "-selectNextSuggestion",
+		"when": "suggestWidgetMultipleSuggestions && suggestWidgetVisible && textInputFocus"
+	},
+	{
+		"key": "ctrl+shift+alt+down",
+		"command": "editor.action.copyLinesDownAction",
+		"when": "editorTextFocus && !editorReadonly"
+	},
+	{
+		"key": "shift+alt+down",
+		"command": "-editor.action.copyLinesDownAction",
+		"when": "editorTextFocus && !editorReadonly"
+	},
+	{
+		"key": "ctrl+shift+alt+up",
+		"command": "editor.action.copyLinesUpAction",
+		"when": "editorTextFocus && !editorReadonly"
+	},
+	{
+		"key": "shift+alt+up",
+		"command": "-editor.action.copyLinesUpAction",
+		"when": "editorTextFocus && !editorReadonly"
+	},
+	{
+		"key": "shift+u",
+		"command": "editor.action.transformToUppercase"
+	}
+]
+}
