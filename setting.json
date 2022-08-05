@@ -1,0 +1,149 @@
+{
+	"redhat.telemetry.enabled": false,
+	"editor.suggestSelection": "first",
+	"vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue",
+	"bracket-pair-colorizer-2.depreciation-notice": false,
+	"terminal.integrated.defaultProfile.linux": "zsh",
+	"terminal.integrated.fontFamily": "'source code pro','SauceCodePro Nerd Font',FiraCode Nerd Font Retina",
+	"editor.fontLigatures": true,
+	"vim.easymotion": true,
+	"vim.incsearch": true,
+	"vim.useSystemClipboard": true,
+	"vim.useCtrlKeys": true,
+	"vim.hlsearch": true,
+	"vim.sneak": true,
+	"vim.easymotionMarkerBackgroundColor": "#020202",
+	"vim.normalModeKeyBindings": [
+		{
+			"before": ["<leader>", "d"],
+			"after": ["d", "d"]
+		},
+		{
+			"before": ["<tab>"],
+			"command": ["editor.action.indentLines"],
+			"commands": ["workbench.action.nextEditor"]
+		},
+		{
+			"before": ["<S-tab>"],
+			"commands": ["workbench.action.previousEditor"]
+		}
+	],
+	"vim.insertModeKeyBindings": [
+		{
+			"before": ["j", "k"],
+			"after": ["<Esc>"]
+		}
+	],
+	"vim.visualModeKeyBindings": [
+		{
+			"before": [">"],
+			"after": [">", "g", "v"]
+		},
+		{
+			"before": ["<"],
+			"after": ["<", "g", "v"]
+		}
+	],
+	"vim.normalModeKeyBindingsNonRecursive": [
+		{
+			"before": ["<leader>", "d"],
+			"after": ["d", "d"]
+		},
+		{
+			"before": ["<C-n>"],
+			"commands": [":nohl"]
+		},
+		{
+			"before": ["<leader>", "w"],
+			"commands": ["workbench.action.splitEditor"]
+		},
+		{
+			"before": ["<leader>", "e"],
+			"commands": ["workbench.action.toggleSidebarVisibility"]
+		},
+		{
+			"before": ["<leader>", "f"],
+			"commands": ["revealInExplorer"]
+		},
+		{
+			"before": ["<leader>", "h"],
+			"after": ["_"]
+		},
+		{
+			"before": ["<leader>", "l"],
+			"after": ["$"]
+		}
+		// {
+		//     "before": ["<C-w>"],
+		//     "commands": ["]
+		// }
+	],
+	"vim.leader": "<space>",
+
+	"vim.handleKeys": {
+		"<C-a>": false,
+		"<C-f>": false,
+		// VS Code new marker @ next occurence
+		"<C-d>": false,
+		// Copy
+		"<C-c>": false,
+		// Cut
+		"<C-x>": false,
+		// Paste
+		"<C-v>": false,
+		"<C-z>": false,
+		"<C-y>": false
+	},
+	"vim.statusBarColorControl": true,
+	"vim.statusBarColors.normal": ["#121835", "#434C5E"],
+	"vim.statusBarColors.insert": "#121835",
+	"vim.statusBarColors.visual": "#B48EAD",
+	"vim.statusBarColors.visualline": "#B48EAD",
+	"vim.statusBarColors.visualblock": "#A3BE8C",
+	"vim.statusBarColors.replace": "#D08770",
+	"vim.statusBarColors.commandlineinprogress": "#EBF30F",
+	"vim.statusBarColors.searchinprogressmode": "#EBF30F",
+	"vim.statusBarColors.easymotionmode": "#EBF30F",
+	"vim.statusBarColors.easymotioninputmode": "#EBF30F",
+	"vim.statusBarColors.surroundinputmode": "#EBF30F",
+	"files.autoSave": "afterDelay",
+	"files.autoSaveDelay": 500,
+	"editor.formatOnSave": true,
+	"editor.formatOnPaste": true,
+	"editor.formatOnType": true,
+	"gitlens.defaultDateFormat": null,
+	"gitlens.defaultDateShortFormat": null,
+	"gitlens.defaultTimeFormat": null,
+	"editor.bracketPairColorization.enabled": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"cSpell.userWords": ["chakra", "thephantombistro"],
+	"workbench.colorTheme": "Just Black",
+	"javascript.updateImportsOnFileMove.enabled": "always",
+	"prettier.useTabs": true,
+	"editor.detectIndentation": true,
+	"editor.fastScrollSensitivity": 8,
+	"editor.codeActionsOnSave": {
+		"source.fixAll": true,
+		"source.sortImports": true
+	},
+	"[java]": {
+		"editor.defaultFormatter": "redhat.java"
+	},
+	"json.maxItemsComputed": 8000,
+	"[typescript]": {
+		"editor.formatOnPaste": true,
+		"editor.formatOnSave": true
+	},
+	"workbench.colorCustomizations": {
+		"statusBar.background": "#B48EAD",
+		"statusBar.noFolderBackground": "#B48EAD",
+		"statusBar.debuggingBackground": "#B48EAD",
+		"statusBar.foreground": "#434C5E",
+		"statusBar.debuggingForeground": "#434C5E"
+	},
+	"workbench.iconTheme": "material-icon-theme",
+	"workbench.sideBar.location": "right",
+	"editor.guides.bracketPairs": "active",
+	"editor.fontFamily": "'SauceCodePro Nerd Font',Consolas, 'Courier New', monospace"
+
+}
