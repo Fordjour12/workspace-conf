@@ -1,3 +1,1 @@
-print([[
-    "test.lua file"
-]])
+require("develophantom")
