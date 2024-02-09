@@ -1,7 +1,16 @@
 local keymap = vim.api.nvim_set_keymap
 local opts = { noremap = true, silent = true }
+local keymapSet = vim.keymap.set
 
 vim.g.mapleader = " "
+
+-- color scheme
+--vim.cmd.colorscheme('tokyonight')
+vim.cmd.colorscheme('rose-pine')
+vim.api.nvim_set_hl(0,'Normal', {bg = 'none'})
+vim.api.nvim_set_hl(0,'NormalFloat', {bg = 'none'})
+
+-- end of color scheme
 
 keymap("n", "<leader>h", ":set hlsearch!<CR>", opts)
 keymap("n", "<leader>q", ":q<CR>", opts)
@@ -9,15 +18,13 @@ keymap("n", "<leader>w", ":w<CR>", opts)
 keymap("i", "jk", "<ESC>", opts)
 keymap("v","jk", "<ESC>", opts)
 
-vim.keymap.set("n","<leader>pv",vim.cmd.Ex)
+keymapSet("n","<leader>pv",vim.cmd.Ex)
 
 
 -- split screen and move between them
--- keymap.set("n","<leader>v", ":vsplit<CR><C-w>l", opts)
--- keymap.set("n","<leader>h", ":hsplit<CR><C-w>j", opts)
--- map.set("n","<leader>l", "<wincmd h<CR>", opts)
--- map.set("n","<leader>l", "<C-w>h<CR>", opts)
--- map.set("n","<leader>j", "<C-w>j<CR>", opts)
+keymapSet("n","<leader>v", ":vsplit<CR><C-w>l", opts)
+keymapSet("n","<leader>h", ":hsplit<CR><C-w>j", opts)
+
 
 -- opt settings
 vim.opt.guicursor = ""

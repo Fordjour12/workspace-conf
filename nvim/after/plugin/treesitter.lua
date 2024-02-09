@@ -1,5 +1,5 @@
 local configs = require("nvim-treesitter.configs")
-configs.setup({
+configs.setup{
   ensure_installed = { "lua", "javascript", "html", "css", "json", "typescript", "tsx", "python", 
   "bash", "cpp", "go", "yaml", "toml", "regex", "dockerfile", "svelte", "vue","dart"},
   sync_install = false,
@@ -8,4 +8,4 @@ configs.setup({
   indent = { enable = true },
   autopairs = { enable = true },
   autotag = { enable = true },
-})
+}
