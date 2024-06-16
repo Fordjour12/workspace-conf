@@ -86,8 +86,15 @@ vim.keymap.set('i', 'jk', '<ESC>', { desc = 'Exiting Insert Mode in Neovim' })
 vim.keymap.set('v', 'jk', '<ESC>', { desc = 'Exiting Visual Mode in Neovim' })
 vim.keymap.set('n', '<leader>pv', vim.cmd.Ex, { desc = 'Explore Panel' })
 
+-- Control the size of splits (horizontal and vertical)
+vim.keymap.set('n', '<M-h>', '<c-w>5<', { desc = 'Decrease split size vertically' })
+vim.keymap.set('n', '<M-l>', '<c-w>5>', { desc = 'Increase  split size vertically' })
+vim.keymap.set('n', '<M-j>', '<c-w>5-', { desc = 'Decrease split size horizontally' })
+vim.keymap.set('n', '<M-k>', '<c-w>5+', { desc = 'Increase  split size horizontally' })
+
 -- Split Screen and Move between them
 vim.keymap.set('n', '<leader>v', ':vsplit<CR><C-w>l', { desc = 'Split to the left split' })
+vim.keymap.set('n', '<leader>h', ':split<CR><C-w>j', { desc = 'Split to the bottom split' })
 
 -- Set highlight on search, but clear on pressing <Esc> in normal mode
 vim.opt.hlsearch = true
