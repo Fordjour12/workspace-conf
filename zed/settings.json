@@ -1,0 +1,28 @@
+{
+    "assistant": {
+      "default_model": {
+        "provider": "copilot_chat",
+        "model": "gpt-4o"
+      },
+      "version": "2"
+    },
+    "vim_mode": true,
+    "ui_font_family": "Hasklig",
+    "ui_font_size": 15,
+    "buffer_font_size": 15,
+    "terminal": {
+      "font_family": "Hasklig",
+      "font_size": 15
+    },
+    "theme": {
+      "mode": "system",
+      "light": "Rosé Pine Dawn",
+      "dark": "Rosé Pine Moon"
+    },
+    "relative_line_numbers": true,
+    "project_panel": {
+      "show_hidden_files": true,
+      "dock": "right"
+    }
+  }
+  
