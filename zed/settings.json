@@ -1,28 +1,61 @@
-{
-    "assistant": {
-      "default_model": {
-        "provider": "copilot_chat",
-        "model": "gpt-4o"
-      },
-      "version": "2"
+  {
+  "base_keymap": "VSCode",
+  "vim_mode": true,
+  "vim": {
+    "use_system_clipboard": "on_yank",
+    "toggle_relative_line_numbers": true,
+    "use_smartcase_find": true
+  },
+  "features": {
+    "inline_completion_provider": "supermaven"
+  },
+  "assistant": {
+    "default_model": {
+      "provider": "zed.dev",
+      "model": "claude-3-5-sonnet-20240620"
     },
-    "vim_mode": true,
-    "ui_font_family": "Hasklig",
-    "ui_font_size": 15,
-    "buffer_font_size": 15,
-    "terminal": {
-      "font_family": "Hasklig",
-      "font_size": 15
-    },
-    "theme": {
-      "mode": "system",
-      "light": "Rosé Pine Dawn",
-      "dark": "Rosé Pine Moon"
-    },
-    "relative_line_numbers": true,
-    "project_panel": {
-      "show_hidden_files": true,
-      "dock": "right"
+    "version": "2"
+  },
+  "format_on_save": "language_server",
+  "code_actions_on_format": {
+    "provider": true
+  },
+  "ui_font_family": "Hasklig",
+  "ui_font_size": 15,
+  "buffer_font_size": 15,
+  "terminal": {
+    "font_family": "Hasklig",
+    "font_size": 15
+  },
+  "theme": {
+    "mode": "system",
+    "light": "Rosé Pine Dawn",
+    "dark": "Tokyo Night"
+  },
+  "relative_line_numbers": true,
+  "project_panel": {
+    "show_hidden_files": true,
+    "dock": "right",
+    "git_status": true,
+    "button": true
+  },
+  "outline_panel": {
+    "dock": "right",
+    "button": true
+  },
+  "collaboration_panel": {
+    "dock": "right",
+    "button": true
+  },
+  "scrollbar": {
+    "show": "never"
+  },
+  "indent_guides": {
+    "enabled": true
+  },
+  "git": {
+    "inline_blame": {
+      "enabled": true
     }
   }
-  
+}
