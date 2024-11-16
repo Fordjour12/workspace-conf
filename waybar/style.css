@@ -1,0 +1,180 @@
+
+* {
+    font-family: "Hasklug Nerd Font Mono";
+    font-weight: normal; 
+    font-size: 12px;
+}
+
+#custom-notification {
+    font-family: "Hasklug Nerd Font Mono";
+    font-size: 14px;
+    color: #C0CAF5; /* Light blue */
+    margin: 2px 0px 0px 0px;
+}
+
+window#waybar {
+    background: #1A1B26; /* Dark blue */
+    border: 3px solid rgba(148, 173, 210, 0.1); /* Light blue-gray border */
+    border-radius: 10px;
+}
+
+tooltip {
+    background: #1F2335; /* Deeper blue */
+    color: #C0CAF5;
+    font-size: 13px;
+    border-radius: 7px;
+    border: 2px solid #7AA2F7; /* Accent border */
+}
+
+#workspaces {
+    background: rgba(23, 23, 23, 0.0);
+    color: #7AA2F7; /* Light blue */
+    border-radius: 9px;
+    transition: 0.2s ease;
+    padding: 1px 4px;
+}
+
+#workspaces button {
+    background: rgba(23, 23, 23, 0.0);
+    color: #C0CAF5;
+    border-radius: 9px;
+    transition: 0.2s ease;
+    padding: 0 4px;
+}
+
+#workspaces button.active {
+    color: #BB9AF7; /* Mauve for active state */
+}
+
+#workspaces button:hover {
+    background: none;
+    color: #7DCFFF; /* Brighter cyan on hover */
+    transition: all 0.3s cubic-bezier(.55, -0.68, .48, 1.682);
+}
+
+#taskbar button {
+    font-size: 4px;
+    padding: 0 3px;
+    border-radius: 9px;
+    color: #A9B1D6; /* Light gray */
+    margin: 0 0 3px 0;
+}
+
+#taskbar button.active {
+    background: #1F2335; /* Deeper blue for active */
+    color: #7AA2F7;
+    margin: 0 3px;
+    padding: 0 12px;
+    transition: all 0.4s cubic-bezier(.55, -0.68, .48, 1.682);
+}
+
+#taskbar button:hover {
+    background: #1E202E;
+    color: #7DCFFF; /* Cyan on hover */
+    transition: all 0.3s cubic-bezier(.55, -0.68, .48, 1.682);
+}
+
+#tray menu * {
+    min-height: 16px;
+    font-weight: bold;
+    font-size: 13px;
+    color: #A9B1D6; /* Light gray */
+}
+
+#battery {
+    font-size: 16px;
+    color: #9ECE6A; /* Green for battery */
+}
+
+#bluetooth,
+#custom-cliphist {
+    color: #C0CAF5;
+    background: #1A1B26;
+}
+
+#clock {
+    color: #C0CAF5;
+    font-size: 16px;
+    font-weight: 900;
+    background: rgba(23, 23, 23, 0.0);
+    padding: 0 10px;
+    border: none;
+}
+
+#pulseaudio {
+    font-size: 16px;
+    color: #7AA2F7;
+}
+
+#cpu {
+    font-size: 16px;
+    color: #FF9E64; /* Peach for CPU */
+}
+
+#custom-led {
+    background: #7AA2F7;
+    color: #FFFFFF;
+    border-radius: 7px;
+    padding: 0 6px;
+}
+
+#custom-gpuinfo,
+#memory {
+    font-size: 16px;
+    color: #9ECE6A; /* Green for GPU and memory */
+}
+
+#network {
+    color: #C0CAF5;
+    font-size: 16px;
+    padding: 0 4px;
+}
+
+#custom-mouse {
+    font-size: 16px;
+    background: #161320;
+}
+
+#custom-power {
+    font-size: 15px;
+    color: #FFFFFF;
+    background: rgba(22, 19, 32, 0.9);
+    padding: 0 4px;
+}
+
+#backlight-slider slider,
+#pulseaudio-slider slider {
+    background-color: transparent;
+    margin-right: 7px;
+}
+
+#backlight-slider trough,
+#pulseaudio-slider trough {
+    border-radius: 8px;
+    background: #2E3440; /* Dark blue-gray */
+}
+
+#backlight-slider highlight,
+#pulseaudio-slider highlight {
+    border-radius: 8px;
+    background-color: #7AA2F7; /* Light blue for slider fill */
+}
+
+#battery.charging,
+#battery.plugged {
+    color: #E8EDF0; /* Light gray for charging */
+}
+
+#battery.critical:not(.charging) {
+    color: red;
+}
+
+#taskbar {
+    padding: 1px;
+}
+
+#custom-expand {
+    min-width: 25px;
+    color: #A1BDCE;
+    font-size: 16px;
+}
