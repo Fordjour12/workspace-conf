@@ -1,0 +1,103 @@
+@define-color storm   #16161E;
+@define-color wave    #1A1B26;
+@define-color indigo  #24283B;
+@define-color ocean   #292E42;
+@define-color lavender #C0CAF5;
+@define-color blue    #7AA2F7;
+@define-color cyan    #7DCFFF;
+@define-color green   #9ECE6A;
+@define-color teal    #1ABC9C;
+@define-color yellow  #E0AF68;
+@define-color orange  #FF9E64;
+@define-color red     #F7768E;
+@define-color magenta #BB9AF7;
+@define-color pink    #F7768E;
+@define-color fg      #C0CAF5;
+@define-color muted_fg #A9B1D6;
+@define-color accent  #FF007C;
+
+* {
+  font-family: 'Hasklug Nerd Font', monospace;
+  font-size: 18px;
+}
+
+/* Window */
+window {
+  margin: 0px;
+  padding: 10px;
+  border: 2px solid @blue;
+  border-radius: 8px;
+  background-color: @wave;
+}
+
+/* Inner Box */
+#inner-box {
+  margin: 5px;
+  padding: 10px;
+  border: none;
+  background-color: @wave;
+}
+
+/* Outer Box */
+#outer-box {
+  margin: 5px;
+  padding: 10px;
+  border: none;
+  background-color: @wave;
+}
+
+/* Scroll */
+#scroll {
+  margin: 0px;
+  padding: 10px;
+  border: none;
+  background-color: @wave;
+}
+
+/* Input */
+#input {
+  margin: 5px 20px;
+  padding: 10px;
+  border: none;
+  border-radius: 0.1em;
+  color: @fg;
+  background-color: @wave;
+}
+
+#input image {
+    border: none;
+    color: @red;
+}
+
+#input * {
+  outline: 4px solid @red!important;
+}
+
+/* Text */
+#text {
+  margin: 5px;
+  border: none;
+  color: @fg;
+}
+
+#entry {
+  background-color: @wave;
+}
+
+#entry arrow {
+  border: none;
+  color: @blue;
+}
+
+/* Selected Entry */
+#entry:selected {
+  border: 0.11em solid @blue;
+}
+
+#entry:selected #text {
+  color: @pink;
+}
+
+#entry:drop(active) {
+  background-color: @blue!important;
+}
