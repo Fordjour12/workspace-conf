@@ -1,0 +1,272 @@
+{
+  "workbench.settings.editor": "json",
+  "workbench.sideBar.location": "right",
+  "editor.fontFamily": "Hasklug Nerd Font",
+  "editor.lineNumbers": "relative",
+  "editor.fontSize": 14,
+  "editor.insertSpaces": false,
+  "editor.letterSpacing": -0.75,
+  // "editor.lineHeight": 26,
+  "files.associations": {
+    "*.sqlbook": "sql",
+    "*.ndjson": "jsonl",
+    "*.dbclient-js": "javascript",
+    ".env*": "dotenv"
+  },
+  "editor.minimap.enabled": false,
+  "editor.minimap.renderCharacters": false,
+  "editor.tokenColorCustomizations": {
+    "textMateRules": [
+      {
+        "scope": "keyword.other.dotenv",
+        "settings": {
+          "foreground": "#FF000000"
+        }
+      }
+    ]
+  },
+  "svelte.enable-ts-plugin": true,
+  "extensions.experimental.affinity": {
+    "vscodevim.vim": 1
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  },
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 700,
+  "editor.formatOnSave": true,
+  "terminal.integrated.fontFamily": "Hasklug Nerd Font",
+  "terminal.integrated.fontSize": 14,
+  "vim.hlsearch": true,
+  "vim.autoindent": true,
+  "vim.leader": "<space>",
+  "vim.normalModeKeyBindings": [
+    {
+      "before": [
+        "<tab>"
+      ],
+      "command": [
+        "editor.action.indentLines"
+      ],
+      "commands": [
+        "workbench.action.nextEditor"
+      ]
+    },
+    {
+      "before": [
+        "<S-tab>"
+      ],
+      "commands": [
+        "workbench.action.previousEditor"
+      ]
+    }
+  ],
+  "vim.normalModeKeyBindingsNonRecursive": [
+    {
+      "before": [
+        "leader",
+        "r"
+      ],
+      "commands": [
+        "editor.action.rename"
+      ]
+    },
+    {
+      "before": [
+        "leader",
+        "w"
+      ],
+      "commands": [
+        ":w!"
+      ]
+    },
+    {
+      "before": [
+        "leader",
+        "q"
+      ],
+      "commands": [
+        ":q!"
+      ]
+    },
+    {
+      "before": [
+        "leader",
+        "x"
+      ],
+      "commands": [
+        ":x!"
+      ]
+    },
+    {
+      "after": [
+        "g",
+        "g",
+        "V",
+        "G"
+      ],
+      "before": [
+        "<c-a>"
+      ]
+    },
+    {
+      "before": [
+        "<leader>",
+        "k"
+      ],
+      "commands": [
+        "editor.action.showHover"
+      ]
+    },
+    {
+      "before": [
+        "[",
+        "d"
+      ],
+      "commands": [
+        "editor.action.marker.prev"
+      ]
+    },
+    {
+      "before": [
+        "]",
+        "d"
+      ],
+      "commands": [
+        "editor.action.marker.next"
+      ]
+    },
+    {
+      "before": [
+        "<leader>",
+        "c",
+        "a"
+      ],
+      "commands": [
+        "editor.action.quickFix"
+      ]
+    },
+    {
+      "after": [
+        "^"
+      ],
+      "before": [
+        "H"
+      ]
+    },
+    {
+      "after": [
+        "$"
+      ],
+      "before": [
+        "L"
+      ]
+    },
+    {
+      "before": [
+        "<leader>",
+        "d"
+      ],
+      "after": [
+        "d",
+        "d"
+      ]
+    },
+    {
+      "before": [
+        "<leader>",
+        "w"
+      ],
+      "commands": [
+        "workbench.action.splitEditor"
+      ]
+    },
+    {
+      "before": [
+        "<leader>",
+        "e"
+      ],
+      "commands": [
+        "workbench.action.toggleSidebarVisibility"
+      ]
+    },
+    {
+      "before": [
+        "<leader>",
+        "f"
+      ],
+      "commands": [
+        "revealInExplorer"
+      ]
+    }
+  ],
+  "vim.visualModeKeyBindings": [
+    {
+      "before": [
+        ">"
+      ],
+      "after": [
+        ">",
+        "g",
+        "v"
+      ]
+    },
+    {
+      "before": [
+        "<"
+      ],
+      "after": [
+        "<",
+        "g",
+        "v"
+      ]
+    },
+    {
+      "before": [
+        "j",
+        "k"
+      ],
+      "after": [
+        "<Esc>"
+      ]
+    }
+  ],
+  "vim.insertModeKeyBindings": [
+    {
+      "before": [
+        "j",
+        "k"
+      ],
+      "after": [
+        "<Esc>"
+      ]
+    }
+  ],
+  "workbench.iconTheme": "symbols",
+  "diffEditor.maxComputationTime": 0,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "workbench.colorTheme": "Linear Theme - Rider",
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "update.releaseTrack": "prerelease",
+  "cursor.composer.shouldAllowCustomModes": true,
+  "cSpell.userWords": [
+    "Bobie",
+    "Camble",
+    "Develophantom",
+    "Fordjour",
+    "Kofi",
+    "oklch"
+  ],
+  "editor.gotoLocation.multipleDefinitions": "goto",
+  "[vue]": {
+    "editor.defaultFormatter": "Vue.volar"
+  },
+  "go.toolsManagement.autoUpdate": true,
+  "symbols.hidesExplorerArrows": false,
+}
