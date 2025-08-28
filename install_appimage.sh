@@ -74,33 +74,81 @@ get_app_name() {
     echo "$app_name"
 }
 
+# Check if application is already installed
+check_existing_installation() {
+    local app_name="$1"
+    local app_name_lower=$(echo "$app_name" | tr '[:upper:]' '[:lower:]')
+
+    local install_dir="/opt/${app_name_lower}"
+    local bin_link="/usr/local/bin/$app_name_lower"
+    local desktop_file="/usr/share/applications/${app_name_lower}.desktop"
+
+    local is_installed=false
+
+    if [[ -d "$install_dir" ]]; then
+        print_warning "Application directory already exists: $install_dir"
+        is_installed=true
+    fi
+
+    if [[ -L "$bin_link" ]]; then
+        print_warning "Terminal command already exists: $bin_link"
+        is_installed=true
+    fi
+
+    if [[ -f "$desktop_file" ]]; then
+        print_warning "Desktop entry already exists: $desktop_file"
+        is_installed=true
+    fi
+
+    if [[ "$is_installed" == true ]]; then
+        echo
+        print_warning "This application appears to already be installed."
+        read -p "Do you want to reinstall/update it? (y/N): " -n 1 -r
+        echo
+
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_status "Installation cancelled"
+            exit 0
+        fi
+
+        # Remove existing installation
+        print_status "Removing existing installation..."
+        sudo rm -rf "$install_dir" 2>/dev/null || true
+        sudo rm -f "$bin_link" 2>/dev/null || true
+        sudo rm -f "$desktop_file" 2>/dev/null || true
+    fi
+}
+
 # Install AppImage system-wide
 install_appimage() {
     local app_name="$1"
     local app_name_lower=$(echo "$app_name" | tr '[:upper:]' '[:lower:]')
-    
+
+    # Check for existing installation
+    check_existing_installation "$app_name"
+
     # Create system-wide directory for this specific application
     local install_dir="/opt/${app_name_lower}"
     print_status "Creating installation directory: $install_dir"
     sudo mkdir -p "$install_dir"
-    
+
     # Copy AppImage to application-specific directory
     local target_path="$install_dir/${app_name}.AppImage"
     print_status "Copying AppImage to: $target_path"
     sudo cp "$APPIMAGE_PATH" "$target_path"
-    
+
     # Make it executable
     print_status "Making AppImage executable"
     sudo chmod +x "$target_path"
-    
+
     # Create symlink in /usr/local/bin for terminal access
     local bin_link="/usr/local/bin/$app_name_lower"
     print_status "Creating symlink in PATH: $bin_link"
     sudo ln -sf "$target_path" "$bin_link"
-    
+
     # Create desktop entry
     create_desktop_entry "$app_name" "$app_name_lower" "$target_path"
-    
+
     print_success "AppImage installed successfully!"
     print_status "You can now run '$app_name_lower' from the terminal"
     print_status "The application is also available in your applications menu"
