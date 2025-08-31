@@ -1,0 +1,272 @@
+#!/bin/bash
+
+# Usage: ./gh-auto-pr.sh [-b <base-branch>] [-l <label>] [-a <assignee>] [--dry-run] <feature-name> ["commit-message" "pr-title" "pr-body"]
+# Example: ./gh-auto-pr.sh -b develop -l bug -a @user1 --dry-run my-cool-feature "fix: resolve login issue" "Fix login" "Fixes login bug."
+
+# Default values
+BASE_BRANCH="main"
+LABELS=""
+ASSIGNEES=""
+DRY_RUN=false
+
+# Parse flags
+while getopts "b:l:a:-:" opt; do
+  case $opt in
+    b) BASE_BRANCH="$OPTARG";;
+    l) LABELS="$OPTARG";;
+    a) ASSIGNEES="$OPTARG";;
+    -)
+      case "${OPTARG}" in
+        dry-run) DRY_RUN=true;;
+        *) echo "Invalid option: --${OPTARG}"; exit 1;;
+      esac;;
+    \?) echo "Invalid option: -$OPTARG"; exit 1;;
+  esac
+done
+
+# Shift past the options to get positional arguments
+shift $((OPTIND-1))
+
+# Check if feature-name is provided
+if [ -z "$1" ]; then
+  echo "Error: Feature name is required."
+  echo "Usage: $0 [-b <base-branch>] [-l <label>] [-a <assignee>] [--dry-run] <feature-name> [<commit-message> <pr-title> <pr-body>]"
+  exit 1
+fi
+
+# Get current date in MM-DD format (e.g., 08-31)
+DATE=$(date +%m-%d)
+
+# Construct branch name with date prefix
+FEATURE_NAME=$1
+BRANCH="${DATE}/${FEATURE_NAME// /-}"  # Replace spaces with hyphens for valid branch name
+
+# Prompt for commit message, PR title, and PR body if not provided
+COMMIT_MSG=$2
+if [ -z "$COMMIT_MSG" ]; then
+  read -p "Enter commit message (e.g., feat: add new feature): " COMMIT_MSG
+fi
+if [ -z "$COMMIT_MSG" ]; then
+  echo "Error: Commit message cannot be empty."
+  exit 1
+fi
+
+# Validate Conventional Commits format
+if ! echo "$COMMIT_MSG" | grep -qE '^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-zA-Z0-9-]+\))?: .+'; then
+  echo "Error: Commit message must follow Conventional Commits format (e.g., 'feat: add feature', 'fix(ui): resolve bug')."
+  exit 1
+fi
+
+PR_TITLE=$3
+if [ -z "$PR_TITLE" ]; then
+  read -p "Enter PR title: " PR_TITLE
+fi
+if [ -z "$PR_TITLE" ]; then
+  echo "Error: PR title cannot be empty."
+  exit 1
+fi
+
+PR_BODY=$4
+if [ -z "$PR_BODY" ]; then
+  echo "Do you want to enter the PR body manually or use your default editor ($EDITOR)? (manual/editor)"
+  read -p "Choice [manual]: " BODY_INPUT
+  BODY_INPUT=${BODY_INPUT:-manual}
+  if [ "$BODY_INPUT" = "editor" ]; then
+    # Create a temporary file for the editor
+    TEMP_FILE=$(mktemp)
+    echo "Enter PR body in your editor. Save and close to continue." > "$TEMP_FILE"
+    if [ "$DRY_RUN" = true ]; then
+      echo "[DRY RUN] Would open editor for PR body at $TEMP_FILE"
+      PR_BODY="Dry-run PR body"
+    else
+      ${EDITOR:-nano} "$TEMP_FILE"
+      PR_BODY=$(cat "$TEMP_FILE" | grep -v "Enter PR body in your editor")
+      rm "$TEMP_FILE"
+    fi
+  else
+    read -p "Enter PR body: " PR_BODY
+  fi
+fi
+if [ -z "$PR_BODY" ]; then
+  PR_BODY="No description provided."
+fi
+
+# Prompt for GitHub issue number
+read -p "Enter GitHub issue number (optional, leave blank to skip): " ISSUE_NUMBER
+if [ -n "$ISSUE_NUMBER" ]; then
+  if [[ ! $ISSUE_NUMBER =~ ^[0-9]+$ ]]; then
+    echo "Error: Issue number must be a positive integer."
+    exit 1
+  fi
+  PR_BODY="$PR_BODY\n\nCloses #$ISSUE_NUMBER"
+fi
+
+# Dry-run message function
+dry_run_echo() {
+  if [ "$DRY_RUN" = true ]; then
+    echo "[DRY RUN] Would execute: $1"
+    return 0
+  else
+    echo "$1"
+    eval "$1"
+    return $?
+  fi
+}
+
+# Validate git and gh setup
+if ! command -v git >/dev/null 2>&1; then
+  echo "Error: Git is not installed."
+  exit 1
+fi
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "Error: GitHub CLI (gh) is not installed. Install it from https://cli.github.com/"
+  exit 1
+fi
+
+if ! gh auth status >/dev/null 2>&1; then
+  echo "Error: Not authenticated with GitHub CLI. Run 'gh auth login' to authenticate."
+  exit 1
+fi
+
+# Check if we're in a git repository
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Error: Not in a git repository."
+  exit 1
+fi
+
+# Check if the repo has a remote
+if ! git remote get-url origin >/dev/null 2>&1; then
+  echo "Error: No remote repository configured."
+  echo "Suggestion: Set up a remote with 'git remote add origin <url>' and try again."
+  exit 1
+fi
+
+# Check if the repo is clean (no uncommitted changes)
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Error: Working directory is not clean. Please commit or stash changes:"
+  git status
+  exit 1
+fi
+
+# Check if there are staged changes
+if [ -n "$(git diff --staged)" ]; then
+  echo "Error: Staged changes detected. Please commit or reset them before running."
+  exit 1
+fi
+
+# Create and switch to new branch
+dry_run_echo "git checkout -b \"$BRANCH\""
+if [ $? -ne 0 ] && [ "$DRY_RUN" = false ]; then
+  echo "Error: Failed to create branch '$BRANCH'."
+  exit 1
+fi
+
+# Stage all changes
+dry_run_echo "git add ."
+
+# Check if there are changes to commit
+if [ -z "$(git status --porcelain)" ]; then
+  echo "Error: No changes to commit."
+  if [ "$DRY_RUN" = false ]; then
+    dry_run_echo "git checkout -"  # Switch back
+    dry_run_echo "git branch -D \"$BRANCH\""  # Delete the created branch
+  fi
+  exit 1
+fi
+
+# Support amending or squashing commits
+echo "Do you want to amend or squash previous commits? (none/amend/squash)"
+read -p "Choice [none]: " COMMIT_ACTION
+COMMIT_ACTION=${COMMIT_ACTION:-none}
+
+case $COMMIT_ACTION in
+  amend)
+    dry_run_echo "git commit --amend -m \"$COMMIT_MSG\""
+    ;;
+  squash)
+    echo "Enter the number of commits to squash (from HEAD): "
+    read NUM_COMMITS
+    if [[ ! $NUM_COMMITS =~ ^[0-9]+$ ]]; then
+      echo "Error: Invalid number of commits."
+      if [ "$DRY_RUN" = false ]; then
+        dry_run_echo "git checkout -"  # Switch back
+        dry_run_echo "git branch -D \"$BRANCH\""
+      fi
+      exit 1
+    fi
+    dry_run_echo "git reset --soft HEAD~\"$NUM_COMMITS\""
+    dry_run_echo "git commit -m \"$COMMIT_MSG\""
+    ;;
+  *)
+    dry_run_echo "git commit -m \"$COMMIT_MSG\""
+    ;;
+esac
+
+if [ $? -ne 0 ] && [ "$DRY_RUN" = false ]; then
+  echo "Error: Commit failed."
+  dry_run_echo "git checkout -"
+  dry_run_echo "git branch -D \"$BRANCH\""
+  exit 1
+fi
+
+# Push to remote with retries
+MAX_RETRIES=3
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  if dry_run_echo "git push origin \"$BRANCH\""; then
+    break
+  else
+    echo "Error: Failed to push branch '$BRANCH'."
+    echo "Suggestions:"
+    echo "- Check if the remote is accessible: 'git remote -v'"
+    echo "- Ensure you have push permissions."
+    echo "- Try 'git push --set-upstream origin $BRANCH' if the branch isn't set."
+    read -p "Retry? (y/n): " RETRY
+    if [ "$RETRY" != "y" ]; then
+      if [ "$DRY_RUN" = false ]; then
+        dry_run_echo "git checkout -"  # Switch back
+        dry_run_echo "git branch -D \"$BRANCH\""
+      fi
+      exit 1
+    fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+  fi
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ] && [ "$DRY_RUN" = false ]; then
+  echo "Error: Max retries reached. Could not push branch."
+  dry_run_echo "git checkout -"
+  dry_run_echo "git branch -D \"$BRANCH\""
+  exit 1
+fi
+
+# Create PR using gh with labels, assignees, and editor
+PR_COMMAND="gh pr create --title \"$PR_TITLE\" --body \"$PR_BODY\" --base \"$BASE_BRANCH\""
+if [ -n "$LABELS" ]; then
+  PR_COMMAND="$PR_COMMAND --label \"$LABELS\""
+fi
+if [ -n "$ASSIGNEES" ]; then
+  PR_COMMAND="$PR_COMMAND --assignee \"$ASSIGNEES\""
+fi
+if [ "$BODY_INPUT" = "editor" ] && [ "$DRY_RUN" = false ]; then
+  PR_COMMAND="$PR_COMMAND --editor"
+fi
+
+PR_URL=$(dry_run_echo "$PR_COMMAND")
+if [ $? -ne 0 ] && [ "$DRY_RUN" = false ]; then
+  echo "Error: Failed to create pull request: $PR_URL"
+  echo "Suggestions:"
+  echo "- Ensure the base branch '$BASE_BRANCH' exists."
+  echo "- Check your GitHub CLI authentication: 'gh auth status'"
+  echo "- Verify labels and assignees exist in the repository."
+  dry_run_echo "git checkout -"
+  dry_run_echo "git branch -D \"$BRANCH\""
+  exit 1
+fi
+
+if [ "$DRY_RUN" = true ]; then
+  echo "[DRY RUN] Pull request would be created with command: $PR_COMMAND"
+else
+  echo "Pull request created successfully: $PR_URL"
+fi
