@@ -1,302 +1,215 @@
 #!/bin/bash
-set -e # Exit immediately if a command exits with a non-zero status.
 
-# --- User Configuration ---
-# IMPORTANT: Replace these placeholder values with your actual details.
+# Exit immediately if a command exits with a non-zero status.
+set -euo pipefail
 
-# Your Google Cloud Project ID
-export GCP_PROJECT_ID="startup-projects-447512"
+# =====================================================================
+# Google Cloud Run Deployment Setup Script (Updated)
+# Includes Artifact Registry Repo Admin + Workload Identity User fixes
+# =====================================================================
 
-# The Google Cloud region for your Cloud Run service, Artifact Registry, and Cloud Storage bucket
-export GCP_REGION="us-central1"
+# --- Configurable Parameters ---
+# Modify these values to customize the setup behavior
 
-# Name for your Artifact Registry Docker repository
-export AR_REPO_NAME="startup-connect-py-repo"
+# API Services to enable
+export API_SERVICES="artifactregistry.googleapis.com run.googleapis.com iam.googleapis.com cloudresourcemanager.googleapis.com storage.googleapis.com"
 
-# Name for the Google Service Account that GitHub Actions will use for deployment
-export SA_NAME="startup-connect-py-deployer"
+# IAM Roles to grant
+export ROLE_RUN_ADMIN="roles/run.admin"
+export ROLE_ARTIFACT_REGISTRY_WRITER="roles/artifactregistry.writer"
+export ROLE_ARTIFACT_REGISTRY_REPO_ADMIN="roles/artifactregistry.repoAdmin"
+export ROLE_SERVICE_ACCOUNT_USER="roles/iam.serviceAccountUser"
+export ROLE_WORKLOAD_IDENTITY_USER="roles/iam.workloadIdentityUser"
+export ROLE_STORAGE_OBJECT_ADMIN="roles/storage.objectAdmin"
 
-# Your GitHub Organization or Username
-export GITHUB_ORG_OR_USERNAME="Fordjour12"
+# Artifact Registry settings
+export AR_REPO_FORMAT="docker"
+export AR_REPO_DESCRIPTION="Docker repository for Cloud Run images"
 
-# Your specific GitHub Repository Name
-export GITHUB_REPO_NAME="startup-connect"
+# Workload Identity Federation settings
+export WIF_POOL_DISPLAY_NAME="GitHub Actions Pool"
+export WIF_POOL_DESCRIPTION="Pool for GitHub Actions workflows to authenticate."
+export WIF_PROVIDER_DISPLAY_NAME="GitHub Actions OIDC Provider"
+export WIF_PROVIDER_DESCRIPTION="OIDC provider for GitHub Actions."
+export WIF_ISSUER_URI="https://token.actions.githubusercontent.com"
+export WIF_ATTRIBUTE_MAPPING="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.ref=assertion.ref"
 
-# The branch that will trigger deployments
-export GITHUB_DEPLOY_BRANCH="master"
+# Service Account settings
+export SA_DISPLAY_NAME="Service Account for GitHub Actions Cloud Run Deployment"
+export SA_DESCRIPTION="Used by GitHub Actions Workload Identity Federation to deploy to Cloud Run."
 
-# Name for your Workload Identity Pool
-export WIF_POOL_ID="startup-connect-master-pool"
+# Timing and retry settings
+export CLEANUP_SLEEP_DURATION=10
 
-# Name for your Workload Identity Provider
-export WIF_PROVIDER_ID="startup-connect-master-provider"
+# Cloud Storage settings
+export GCS_UNIFORM_BUCKET_LEVEL_ACCESS="--uniform-bucket-level-access"
 
-# Name for your Cloud Storage bucket (optional, set to "" if not needed)
-export GCS_BUCKET_NAME="${GCP_PROJECT_ID}-9ad91b68d08-app-data"
+# --- Input Validation ---
 
-# --- End User Configuration ---
+if [ -z "${GCP_PROJECT_ID:-}" ] || [ -z "${GCP_REGION:-}" ] || [ -z "${SA_NAME:-}" ] ||
+   [ -z "${GITHUB_ORG_OR_USERNAME:-}" ] || [ -z "${GITHUB_REPO_NAME:-}" ] ||
+   [ -z "${GITHUB_DEPLOY_BRANCH:-}" ] || [ -z "${WIF_POOL_ID:-}" ] ||
+   [ -z "${WIF_PROVIDER_ID:-}" ] || [ -z "${AR_REPO_NAME:-}" ]; then
+   echo "ERROR: One or more required environment variables are not set."
+   echo "Please set: GCP_PROJECT_ID, GCP_REGION, SA_NAME, GITHUB_ORG_OR_USERNAME, GITHUB_REPO_NAME,"
+   echo "            GITHUB_DEPLOY_BRANCH, WIF_POOL_ID, WIF_PROVIDER_ID, AR_REPO_NAME."
+   exit 1
+fi
 
-# --- Derived Variables ---
 export SA_EMAIL="${SA_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
 export PROJECT_NUMBER=$(gcloud projects describe "${GCP_PROJECT_ID}" --format="value(projectNumber)")
 
 if [ -z "${PROJECT_NUMBER}" ]; then
-   echo "ERROR: Could not retrieve project number for ${GCP_PROJECT_ID}. Please check your project ID and permissions."
+   echo "ERROR: Could not retrieve project number for ${GCP_PROJECT_ID}."
    exit 1
 fi
 
 export WIF_POOL_FULL_PATH="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL_ID}"
 export WIF_PROVIDER_FULL_PATH="${WIF_POOL_FULL_PATH}/providers/${WIF_PROVIDER_ID}"
 
-# --- Script Start ---
-echo "--- Starting Google Cloud Run Deployment Pipeline Setup ---"
-echo "Project ID: ${GCP_PROJECT_ID}"
+echo "=== Starting Cloud Run Deployment Setup ==="
+echo "Project: ${GCP_PROJECT_ID} (${PROJECT_NUMBER})"
 echo "Region: ${GCP_REGION}"
 echo "Service Account: ${SA_EMAIL}"
-echo "GitHub Org/User: ${GITHUB_ORG_OR_USERNAME}"
-echo "GitHub Repo: ${GITHUB_REPO_NAME}"
-echo "Deployment Branch: ${GITHUB_DEPLOY_BRANCH}"
+echo "Artifact Registry: ${AR_REPO_NAME}"
+echo "GitHub: ${GITHUB_ORG_OR_USERNAME}/${GITHUB_REPO_NAME} (${GITHUB_DEPLOY_BRANCH})"
 echo ""
 
-echo "It's highly recommended to update your gcloud components before running this script:"
-echo "  gcloud components update"
-echo "Press Enter to continue (or Ctrl+C to exit and update gcloud)..."
-read -r
+# --- 1. Enable Required APIs ---
+echo "[1] Enabling APIs..."
+gcloud services enable ${API_SERVICES} --project="${GCP_PROJECT_ID}"
 
-# --- 0. Optional Cleanup Prompt ---
-echo "Do you want to delete existing Workload Identity Pool and Provider (if they exist)? This is destructive and should only be done if you want a clean setup."
-echo "Enter 'yes' to delete, or press Enter to skip:"
-read -r CLEANUP_RESPONSE
-if [ "$CLEANUP_RESPONSE" = "yes" ]; then
-   echo "  - Attempting to clean up existing Workload Identity Provider and Pool..."
-   gcloud iam workload-identity-pools providers delete "${WIF_PROVIDER_ID}" \
-      --workload-identity-pool="${WIF_POOL_ID}" \
-      --location="global" \
-      --project="${GCP_PROJECT_ID}" --quiet || echo "    Provider '${WIF_PROVIDER_ID}' not found or could not be deleted. Continuing."
-   gcloud iam workload-identity-pools delete "${WIF_POOL_ID}" \
-      --location="global" \
-      --project="${GCP_PROJECT_ID}" --quiet || echo "    Pool '${WIF_POOL_ID}' not found or could not be deleted. Continuing."
-   echo "  Waiting 10 seconds for deletion to propagate..."
-   sleep 10
-else
-   echo "  Skipping cleanup of existing Workload Identity Pool and Provider."
-fi
-echo ""
-
-# --- 1. Enable Required Google Cloud APIs ---
-echo "1. Enabling required Google Cloud APIs..."
-gcloud services enable \
-   artifactregistry.googleapis.com \
-   run.googleapis.com \
-   iam.googleapis.com \
-   cloudresourcemanager.googleapis.com \
-   storage.googleapis.com \
-   --project="${GCP_PROJECT_ID}" || {
-   echo "ERROR: Failed to enable APIs."
-   exit 1
-}
-echo "APIs enabled."
-echo ""
-
-# --- 2. Configure Artifact Registry ---
-echo "2. Configuring Artifact Registry Docker repository: ${AR_REPO_NAME} in ${GCP_REGION}..."
-if ! gcloud artifacts repositories describe "${AR_REPO_NAME}" --location="${GCP_REGION}" --project="${GCP_PROJECT_ID}" &>/dev/null; then
-   gcloud artifacts repositories create "${AR_REPO_NAME}" \
-      --repository-format=docker \
-      --location="${GCP_REGION}" \
-      --description="Docker repository for Cloud Run images" \
-      --project="${GCP_PROJECT_ID}" || {
-      echo "ERROR: Failed to create Artifact Registry repository."
-      exit 1
-   }
-   echo "Artifact Registry repository created."
-   # Grant createOnPushWriter for initial push if repo is new
-   echo "  - Granting roles/artifactregistry.createOnPushWriter to service account for initial push..."
-   gcloud artifacts repositories add-iam-policy-binding "${AR_REPO_NAME}" \
-      --project="${GCP_PROJECT_ID}" \
-      --location="${GCP_REGION}" \
-      --member="serviceAccount:${SA_EMAIL}" \
-      --role="roles/artifactregistry.createOnPushWriter" || {
-      echo "ERROR: Failed to grant createOnPushWriter role."
-      exit 1
-   }
-   echo "  createOnPushWriter role granted."
-else
-   echo "Artifact Registry repository '${AR_REPO_NAME}' already exists. Skipping creation."
-fi
-echo ""
-
-# --- 3. Create Google Service Account ---
-echo "3. Creating Google Service Account: ${SA_NAME}..."
+# --- 2. Create Service Account ---
+echo "[2] Creating Service Account..."
 if ! gcloud iam service-accounts describe "${SA_EMAIL}" --project="${GCP_PROJECT_ID}" &>/dev/null; then
-   gcloud iam service-accounts create "${SA_NAME}" \
-      --display-name="Service Account for GitHub Actions Cloud Run Deployment" \
-      --description="Used by GitHub Actions Workload Identity Federation to deploy to Cloud Run." \
-      --project="${GCP_PROJECT_ID}" || {
-      echo "ERROR: Failed to create service account."
-      exit 1
-   }
-   echo "Service Account created."
+  gcloud iam service-accounts create "${SA_NAME}" \
+    --display-name="${SA_DISPLAY_NAME}" \
+    --description="${SA_DESCRIPTION}" \
+    --project="${GCP_PROJECT_ID}"
+  echo "Service account created."
 else
-   echo "Service Account '${SA_NAME}' already exists. Skipping creation."
-fi
-echo ""
-
-# --- 4. Grant IAM Roles to Service Account ---
-echo "4. Granting IAM roles to service account: ${SA_EMAIL}..."
-
-echo "  - Granting roles/run.admin..."
-gcloud projects add-iam-policy-binding "${GCP_PROJECT_ID}" \
-   --member="serviceAccount:${SA_EMAIL}" \
-   --role="roles/run.admin" \
-   --condition=None \
-   --project="${GCP_PROJECT_ID}" || {
-   echo "ERROR: Failed to grant roles/run.admin."
-   exit 1
-}
-
-echo "  - Granting roles/artifactregistry.writer..."
-gcloud projects add-iam-policy-binding "${GCP_PROJECT_ID}" \
-   --member="serviceAccount:${SA_EMAIL}" \
-   --role="roles/artifactregistry.writer" \
-   --condition=None \
-   --project="${GCP_PROJECT_ID}" || {
-   echo "ERROR: Failed to grant roles/artifactregistry.writer."
-   exit 1
-}
-
-echo "  - Granting roles/iam.serviceAccountUser..."
-gcloud projects add-iam-policy-binding "${GCP_PROJECT_ID}" \
-   --member="serviceAccount:${SA_EMAIL}" \
-   --role="roles/iam.serviceAccountUser" \
-   --condition=None \
-   --project="${GCP_PROJECT_ID}" || {
-   echo "ERROR: Failed to grant roles/iam.serviceAccountUser."
-   exit 1
-}
-
-echo "IAM roles granted to service account."
-echo ""
-
-echo "  - Granting roles/iam.workloadIdentityPoolAdmin ..."
-gcloud projects add-iam-policy-binding "${GCP_PROJECT_ID}" \
-   --member="serviceAccount:${SA_EMAIL}" \
-   --role="roles/iam.workloadIdentityPoolAdmin" \
-   --condition=None \
-   --project="${GCP_PROJECT_ID}" || {
-   echo "ERROR: Failed to grant roles/iam.workloadIdentityPoolAdmin."
-   exit 1
-}
-echo "IAM roles granted to service account."
-echo ""
-
-# --- 5. Configure Workload Identity Federation (WIF) ---
-echo "5. Configuring Workload Identity Federation..."
-
-# Create Workload Identity Pool
-echo "  - Creating Workload Identity Pool: ${WIF_POOL_ID}..."
-if ! gcloud iam workload-identity-pools describe "${WIF_POOL_ID}" --location="global" --project="${GCP_PROJECT_ID}" &>/dev/null; then
-   gcloud iam workload-identity-pools create "${WIF_POOL_ID}" \
-      --project="${GCP_PROJECT_ID}" \
-      --location="global" \
-      --display-name="GitHub Actions Pool" \
-      --description="Pool for GitHub Actions workflows to authenticate." || {
-      echo "ERROR: Failed to create Workload Identity Pool or Run the script again in a new terminal individually."
-      exit 1
-   }
-   echo "  Workload Identity Pool created."
-else
-   echo "  Workload Identity Pool '${WIF_POOL_ID}' already exists. Skipping creation."
+  echo "Service account already exists. Skipping creation."
 fi
 
-# Create OIDC Provider with full attribute mappings and condition
-echo "  - Creating OIDC Provider: ${WIF_PROVIDER_ID}..."
-if ! gcloud iam workload-identity-pools providers describe "${WIF_PROVIDER_ID}" --workload-identity-pool="${WIF_POOL_ID}" --location="global" --project="${GCP_PROJECT_ID}" &>/dev/null; then
-   gcloud iam workload-identity-pools providers create-oidc "${WIF_PROVIDER_ID}" \
-      --project="${GCP_PROJECT_ID}" \
-      --location="global" \
-      --workload-identity-pool="${WIF_POOL_ID}" \
-      --display-name="GitHub Actions OIDC Provider" \
-      --description="OIDC provider for GitHub Actions." \
-      --issuer-uri="https://token.actions.githubusercontent.com" \
-      --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
-      --attribute-condition="assertion.repository == '${GITHUB_ORG_OR_USERNAME}/${GITHUB_REPO_NAME}' && assertion.ref == 'refs/heads/${GITHUB_DEPLOY_BRANCH}'" || {
-      echo "ERROR: Failed to create OIDC Provider or Run the script again in a new terminal individually."
-      exit 1
-   }
-   echo "  OIDC Provider created."
+# --- 3. Assign IAM Roles ---
+echo "[3] Assigning roles to service account..."
+for ROLE in \
+  "${ROLE_RUN_ADMIN}" \
+  "${ROLE_SERVICE_ACCOUNT_USER}" \
+  "${ROLE_ARTIFACT_REGISTRY_WRITER}" \
+  "${ROLE_ARTIFACT_REGISTRY_REPO_ADMIN}"; do
+  echo "  - Granting ${ROLE}"
+  gcloud projects add-iam-policy-binding "${GCP_PROJECT_ID}" \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="${ROLE}" \
+    --project="${GCP_PROJECT_ID}" --quiet
+done
+
+# --- 4. Artifact Registry ---
+echo "[4] Creating Artifact Registry repository..."
+if ! gcloud artifacts repositories describe "${AR_REPO_NAME}" \
+  --location="${GCP_REGION}" --project="${GCP_PROJECT_ID}" &>/dev/null; then
+  gcloud artifacts repositories create "${AR_REPO_NAME}" \
+    --repository-format="${AR_REPO_FORMAT}" \
+    --location="${GCP_REGION}" \
+    --description="${AR_REPO_DESCRIPTION}" \
+    --project="${GCP_PROJECT_ID}"
+  echo "Repository created."
 else
-   echo "  OIDC Provider '${WIF_PROVIDER_ID}' already exists. Skipping creation."
+  echo "Repository already exists. Skipping creation."
 fi
 
-# Validate IAM Condition
-echo "  - Validating IAM condition..."
-CONDITION_EXPRESSION="attribute.repository == '${GITHUB_ORG_OR_USERNAME}/${GITHUB_REPO_NAME}' && attribute.ref == 'refs/heads/${GITHUB_DEPLOY_BRANCH}'"
-CONDITION_TITLE="GitHub Actions Deployment Access for ${GITHUB_REPO_NAME} ${GITHUB_DEPLOY_BRANCH}"
-CONDITION_DESCRIPTION="Allows GitHub Actions from ${GITHUB_ORG_OR_USERNAME}/${GITHUB_REPO_NAME} on branch ${GITHUB_DEPLOY_BRANCH} to impersonate this service account."
+# Add repo-level IAM binding (least privilege)
+echo "  - Granting ${ROLE_ARTIFACT_REGISTRY_WRITER} on repo..."
+gcloud artifacts repositories add-iam-policy-binding "${AR_REPO_NAME}" \
+  --location="${GCP_REGION}" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="${ROLE_ARTIFACT_REGISTRY_WRITER}" \
+  --project="${GCP_PROJECT_ID}" --quiet
 
-echo "    Condition: ${CONDITION_EXPRESSION}"
-gcloud alpha iam policies lint-condition \
-   --condition-expression="${CONDITION_EXPRESSION}" || {
-   echo "ERROR: IAM condition validation failed. Please check the condition syntax."
-   exit 1
-}
-echo "  IAM condition validated."
+echo "  - Granting ${ROLE_ARTIFACT_REGISTRY_REPO_ADMIN} on repo..."
+gcloud artifacts repositories add-iam-policy-binding "${AR_REPO_NAME}" \
+  --location="${GCP_REGION}" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="${ROLE_ARTIFACT_REGISTRY_REPO_ADMIN}" \
+  --project="${GCP_PROJECT_ID}" --quiet
 
-# Bind Service Account to WIF Provider with a Condition
-echo "  - Binding service account to WIF provider with a secure condition..."
+# --- 5. Workload Identity Federation ---
+echo "[5] Setting up Workload Identity Federation..."
+
+if ! gcloud iam workload-identity-pools describe "${WIF_POOL_ID}" \
+  --location="global" --project="${GCP_PROJECT_ID}" &>/dev/null; then
+  gcloud iam workload-identity-pools create "${WIF_POOL_ID}" \
+    --project="${GCP_PROJECT_ID}" \
+    --location="global" \
+    --display-name="${WIF_POOL_DISPLAY_NAME}" \
+    --description="${WIF_POOL_DESCRIPTION}"
+  echo "WIF Pool created."
+else
+  echo "WIF Pool already exists."
+fi
+
+if ! gcloud iam workload-identity-pools providers describe "${WIF_PROVIDER_ID}" \
+  --workload-identity-pool="${WIF_POOL_ID}" \
+  --location="global" \
+  --project="${GCP_PROJECT_ID}" &>/dev/null; then
+  gcloud iam workload-identity-pools providers create-oidc "${WIF_PROVIDER_ID}" \
+    --project="${GCP_PROJECT_ID}" \
+    --location="global" \
+    --workload-identity-pool="${WIF_POOL_ID}" \
+    --display-name="${WIF_PROVIDER_DISPLAY_NAME}" \
+    --description="${WIF_PROVIDER_DESCRIPTION}" \
+    --issuer-uri="${WIF_ISSUER_URI}" \
+    --attribute-mapping="${WIF_ATTRIBUTE_MAPPING}" \
+    --attribute-condition="assertion.repository=='${GITHUB_ORG_OR_USERNAME}/${GITHUB_REPO_NAME}' && assertion.ref=='refs/heads/${GITHUB_DEPLOY_BRANCH}'"
+  echo "OIDC Provider created."
+else
+  echo "OIDC Provider already exists."
+fi
+
+# Bind service account to WIF provider (Workload Identity User)
+echo "  - Binding Workload Identity User role..."
+WIF_MEMBER="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL_ID}/attribute.repository/${GITHUB_ORG_OR_USERNAME}/${GITHUB_REPO_NAME}/attribute.ref/refs/heads/${GITHUB_DEPLOY_BRANCH}"
 gcloud iam service-accounts add-iam-policy-binding "${SA_EMAIL}" \
-   --project="${GCP_PROJECT_ID}" \
-   --role="roles/iam.workloadIdentityUser" \
-   --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL_ID}/attribute.repository/${GITHUB_ORG_OR_USERNAME}/${GITHUB_REPO_NAME}" \
-   --condition="expression=${CONDITION_EXPRESSION},title=${CONDITION_TITLE},description=${CONDITION_DESCRIPTION}" || {
-   echo "ERROR: Failed to bind service account to WIF provider."
-   exit 1
-}
-echo "  Workload Identity Federation configured."
-echo ""
+  --project="${GCP_PROJECT_ID}" \
+  --role="${ROLE_WORKLOAD_IDENTITY_USER}" \
+  --member="${WIF_MEMBER}" --quiet
 
-# --- 6. Configure Cloud Storage (Optional) ---
-if [ -n "${GCS_BUCKET_NAME}" ]; then
-   echo "6. Configuring Cloud Storage bucket: gs://${GCS_BUCKET_NAME}..."
-   if ! gcloud storage buckets describe "gs://${GCS_BUCKET_NAME}" --project="${GCP_PROJECT_ID}" &>/dev/null; then
-      gcloud storage buckets create "gs://${GCS_BUCKET_NAME}" \
-         --project="${GCP_PROJECT_ID}" \
-         --location="${GCP_REGION}" \
-         --uniform-bucket-level-access || {
-         echo "ERROR: Failed to create Cloud Storage bucket."
-         exit 1
-      }
-      echo "Cloud Storage bucket created."
-   else
-      echo "Cloud Storage bucket '${GCS_BUCKET_NAME}' already exists. Skipping creation."
-   fi
-
-   echo "  - Granting roles/storage.admin to bucket '${GCS_BUCKET_NAME}'..."
-   gcloud storage buckets add-iam-policy-binding "gs://${GCS_BUCKET_NAME}" \
-      --member="serviceAccount:${SA_EMAIL}" \
-      --role="roles/storage.admin" \
+# --- 6. Optional: Cloud Storage setup ---
+if [ -n "${GCS_BUCKET_NAME:-}" ]; then
+  echo "[6] Configuring Cloud Storage bucket..."
+  if ! gcloud storage buckets describe "gs://${GCS_BUCKET_NAME}" &>/dev/null; then
+    gcloud storage buckets create "gs://${GCS_BUCKET_NAME}" \
       --project="${GCP_PROJECT_ID}" \
-      --condition=None || {
-      echo "ERROR: Failed to grant storage.admin role to bucket."
-      exit 1
-   }
-   echo "Cloud Storage bucket configured and access granted."
-   echo ""
-else
-   echo "6. Skipping Cloud Storage bucket creation (GCS_BUCKET_NAME was not set)."
-   echo ""
+      --location="${GCP_REGION}" \
+      ${GCS_UNIFORM_BUCKET_LEVEL_ACCESS}
+  fi
+  gcloud storage buckets add-iam-policy-binding "gs://${GCS_BUCKET_NAME}" \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="${ROLE_STORAGE_OBJECT_ADMIN}" \
+    --project="${GCP_PROJECT_ID}"
+  echo "Storage bucket configured."
 fi
 
-echo "--- Setup Complete! ---"
-echo "You can now use the following details in your GitHub Actions workflow:"
-echo "------------------------------------------------------------------------------------------------------"
-echo "Google Cloud Project ID: ${GCP_PROJECT_ID}"
-echo "Google Cloud Region: ${GCP_REGION}"
-echo "Artifact Registry Docker Repo: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPO_NAME}"
-echo "Service Account Email: ${SA_EMAIL}"
-echo "Workload Identity Provider Resource Name: ${WIF_PROVIDER_FULL_PATH}"
-echo "Cloud Storage Bucket (if created): gs://${GCS_BUCKET_NAME}"
-echo "------------------------------------------------------------------------------------------------------"
+# --- Done ---
 echo ""
-echo "Next steps: Create your GitHub Actions workflow file using the example provided."
+echo "✅ Setup Complete!"
+echo "----------------------------------------"
+echo "Service Account: ${SA_EMAIL}"
+echo "Project ID: ${GCP_PROJECT_ID}"
+echo "Region: ${GCP_REGION}"
+echo "Artifact Repo: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPO_NAME}"
+echo "WIF Provider: ${WIF_PROVIDER_FULL_PATH}"
+echo "----------------------------------------"
+echo ""
+echo "You can now configure your GitHub Actions with:"
+echo ""
+echo "  - uses: google-github-actions/auth@v2"
+echo "    with:"
+echo "      workload_identity_provider: '${WIF_PROVIDER_FULL_PATH}'"
+echo "      service_account: '${SA_EMAIL}'"
+echo ""
+echo "Then run:"
+echo "  gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet"
+echo "and push your image!"
+
