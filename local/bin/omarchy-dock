@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+action="${1:-toggle}"
+
+signal_for_action() {
+  case "$1" in
+    toggle) printf '%s\n' 35 ;;
+    show) printf '%s\n' 36 ;;
+    hide) printf '%s\n' 37 ;;
+    restart) printf '%s\n' restart ;;
+    *)
+      printf 'Usage: omarchy-dock [toggle|show|hide|restart]\n' >&2
+      exit 2
+      ;;
+  esac
+}
+
+signal="$(signal_for_action "$action")"
+
+if [[ "$signal" == restart ]]; then
+  "$HOME/.local/bin/omarchy-dock-theme"
+  exit 0
+fi
+
+if ! pgrep -f '^nwg-dock-hyprland( |$)' >/dev/null; then
+  "$HOME/.local/bin/omarchy-dock-theme"
+  sleep 0.2
+fi
+
+pkill "-$signal" -f '^nwg-dock-hyprland( |$)' 2>/dev/null || true

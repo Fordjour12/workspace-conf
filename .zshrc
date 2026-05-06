@@ -116,6 +116,7 @@ alias v="nvim"
 alias vim="nvim"
 
 alias zed="zeditor"
+alias opj="$HOME/.local/bin/opj"
 
 # list all java versions ==> archlinux-java status
 # setting java version ==> sudo archlinux-java set (version)

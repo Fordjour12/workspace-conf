@@ -1,0 +1,28 @@
+window {
+  background-color: rgba(18, 18, 18, 0.86);
+  color: #ffffff;
+  border: 1px solid rgba(243, 65, 36, 0.42);
+  border-radius: 22px;
+}
+
+button {
+  background: transparent;
+  color: #ffffff;
+  border: 0;
+  border-radius: 16px;
+  margin: 4px;
+  padding: 6px;
+}
+
+button:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+button:checked,
+button:active {
+  background-color: rgba(243, 65, 36, 0.22);
+}
+
+image {
+  padding: 2px;
+}

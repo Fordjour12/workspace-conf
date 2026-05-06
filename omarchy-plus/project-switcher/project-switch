@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$HOME/.config/omarchy-plus/project-switcher"
+CONFIG="$ROOT/projects.conf"
+OPEN_SCRIPT="$ROOT/open-project"
+USE_FZF="no"
+LIST_ONLY="no"
+DISCOVERY_ROOTS=(
+  "$HOME/Work/dev"
+  "$HOME/Work/tries"
+  "$HOME/.t3/worktrees"
+)
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --fzf)
+      USE_FZF="yes"
+      shift
+      ;;
+    --list)
+      LIST_ONLY="yes"
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      printf 'Usage: project-switch [--fzf] [--list] [project name]\n' >&2
+      exit 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ ! -f "$CONFIG" ]]; then
+  notify-send "Project Switcher" "projects.conf not found: $CONFIG" 2>/dev/null || true
+  exit 1
+fi
+
+project_lines() {
+  awk -F'|' 'NF && $1 !~ /^[[:space:]]*#/ && $1 !~ /^[[:space:]]*$/ { print }' "$CONFIG"
+}
+
+is_project_dir() {
+  local dir="$1"
+
+  [[ -d "$dir/.git" || -f "$dir/.git" ]] ||
+    [[ -f "$dir/package.json" ]] ||
+    [[ -f "$dir/Cargo.toml" ]] ||
+    [[ -f "$dir/go.mod" ]] ||
+    [[ -f "$dir/pyproject.toml" ]] ||
+    [[ -f "$dir/deno.json" ]] ||
+    [[ -f "$dir/pnpm-workspace.yaml" ]] ||
+    [[ -f "$dir/flake.nix" ]]
+}
+
+display_name_for_dir() {
+  local dir="$1"
+
+  case "$dir" in
+    "$HOME/.t3/worktrees/"*)
+      local rest="${dir#"$HOME/.t3/worktrees/"}"
+      printf 'worktree: %s\n' "${rest//\// / }"
+      ;;
+    "$HOME/Work/dev/"*)
+      printf 'dev: %s\n' "${dir#"$HOME/Work/dev/"}"
+      ;;
+    "$HOME/Work/tries/"*)
+      printf 'try: %s\n' "${dir#"$HOME/Work/tries/"}"
+      ;;
+    *)
+      printf '%s\n' "$(basename "$dir")"
+      ;;
+  esac
+}
+
+workspace_for_dir() {
+  local dir="$1"
+
+  case "$dir" in
+    "$HOME/.t3/worktrees/"*) printf '8\n' ;;
+    "$HOME/Work/tries/"*) printf '7\n' ;;
+    *) printf '\n' ;;
+  esac
+}
+
+dev_command_for_dir() {
+  local dir="$1"
+
+  if [[ -f "$dir/package.json" ]]; then
+    printf 'pnpm dev\n'
+  elif [[ -f "$dir/Cargo.toml" ]]; then
+    printf 'cargo run\n'
+  else
+    printf '\n'
+  fi
+}
+
+discovered_project_lines() {
+  local root dir name workspace dev_command
+  local -a found_roots=()
+
+  for root in "${DISCOVERY_ROOTS[@]}"; do
+    [[ -d "$root" ]] || continue
+
+    while IFS= read -r dir; do
+      for found in "${found_roots[@]}"; do
+        [[ "$dir" == "$found"/* ]] && continue 2
+      done
+
+      is_project_dir "$dir" || continue
+      found_roots+=("$dir")
+      name="$(display_name_for_dir "$dir")"
+      workspace="$(workspace_for_dir "$dir")"
+      dev_command="$(dev_command_for_dir "$dir")"
+      printf '%s|%s|%s|%s|||discovered\n' "$name" "$dir" "$workspace" "$dev_command"
+    done < <(
+      find "$root" -mindepth 1 -maxdepth 4 -type d \
+        \( -name .git -o -name node_modules -o -name target -o -name .svelte-kit -o -name .turbo -o -name .vite -o -name dist -o -name build \) -prune \
+        -o -type d -print 2>/dev/null
+    )
+  done
+}
+
+all_project_lines() {
+  {
+    project_lines
+    discovered_project_lines
+  } | awk -F'|' -v home="$HOME" '
+    {
+      key = $2
+      sub(/^~/, home, key)
+      if (!seen[key]++) print
+    }
+  '
+}
+
+project_names() {
+  all_project_lines | awk -F'|' '{ print $1 }'
+}
+
+if [[ "$LIST_ONLY" == "yes" ]]; then
+  all_project_lines
+  exit 0
+fi
+
+select_project() {
+  if [[ "$USE_FZF" == "yes" ]]; then
+    project_names | fzf --prompt="Project > "
+  elif command -v walker >/dev/null 2>&1; then
+    project_names | walker --dmenu
+  elif command -v rofi >/dev/null 2>&1; then
+    project_names | rofi -dmenu -p "Project"
+  elif command -v wofi >/dev/null 2>&1; then
+    project_names | wofi --dmenu --prompt "Project"
+  elif command -v fuzzel >/dev/null 2>&1; then
+    project_names | fuzzel --dmenu --prompt "Project: "
+  elif command -v fzf >/dev/null 2>&1; then
+    project_names | fzf --prompt="Project > "
+  else
+    notify-send "Project Switcher" "No menu tool found: install walker, rofi, wofi, fuzzel, or fzf" 2>/dev/null || true
+    exit 1
+  fi
+}
+
+if [[ $# -gt 0 ]]; then
+  selected="$*"
+else
+  selected="$(select_project || true)"
+fi
+
+[[ -n "${selected:-}" ]] || exit 0
+
+project_line="$(
+  all_project_lines | awk -F'|' -v selected="$selected" '$1 == selected { print; exit }'
+)"
+
+if [[ -z "$project_line" ]]; then
+  notify-send "Project Switcher" "Project not found: $selected" 2>/dev/null || true
+  exit 1
+fi
+
+"$OPEN_SCRIPT" "$project_line"

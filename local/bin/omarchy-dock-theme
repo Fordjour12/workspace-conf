@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+THEME_DIR="${OMARCHY_THEME_DIR:-$CONFIG_HOME/omarchy/current/theme}"
+DOCK_DIR="$CONFIG_HOME/nwg-dock-hyprland"
+STYLE_FILE="$DOCK_DIR/style.css"
+
+WAYBAR_COLORS="$THEME_DIR/waybar.css"
+COLORS_TOML="$THEME_DIR/colors.toml"
+
+mkdir -p "$DOCK_DIR"
+
+css_color() {
+  local name="$1"
+
+  [[ -f "$WAYBAR_COLORS" ]] || return 1
+
+  awk -v name="$name" '
+    $1 == "@define-color" && $2 == name {
+      gsub(";", "", $3)
+      print $3
+      exit
+    }
+  ' "$WAYBAR_COLORS"
+}
+
+toml_color() {
+  local name="$1"
+
+  [[ -f "$COLORS_TOML" ]] || return 1
+
+  awk -F= -v name="$name" '
+    $1 ~ "^[[:space:]]*" name "[[:space:]]*$" {
+      value = $2
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^"|"$/, "", value)
+      print value
+      exit
+    }
+  ' "$COLORS_TOML"
+}
+
+first_color() {
+  local name="$1"
+  local fallback="$2"
+  local value
+
+  value="$(css_color "$name" || true)"
+  [[ -n "$value" ]] || value="$(toml_color "$name" || true)"
+  [[ -n "$value" ]] || value="$fallback"
+
+  printf '%s\n' "$value"
+}
+
+hex_to_rgba() {
+  local color="$1"
+  local alpha="$2"
+
+  if [[ "$color" =~ ^#([0-9a-fA-F]{6})$ ]]; then
+    local hex="${BASH_REMATCH[1]}"
+    local red=$((16#${hex:0:2}))
+    local green=$((16#${hex:2:2}))
+    local blue=$((16#${hex:4:2}))
+
+    printf 'rgba(%d, %d, %d, %s)\n' "$red" "$green" "$blue" "$alpha"
+  else
+    printf '%s\n' "$color"
+  fi
+}
+
+BACKGROUND="$(first_color background '#121212')"
+FOREGROUND="$(first_color foreground '#ffffff')"
+ACCENT="$(first_color accent "$FOREGROUND")"
+
+DOCK_BACKGROUND="$(hex_to_rgba "$BACKGROUND" '0.86')"
+DOCK_BORDER="$(hex_to_rgba "$ACCENT" '0.42')"
+DOCK_HOVER="$(hex_to_rgba "$FOREGROUND" '0.12')"
+DOCK_ACTIVE="$(hex_to_rgba "$ACCENT" '0.22')"
+
+cat >"$STYLE_FILE" <<EOF
+window {
+  background-color: $DOCK_BACKGROUND;
+  color: $FOREGROUND;
+  border: 1px solid $DOCK_BORDER;
+  border-radius: 22px;
+}
+
+button {
+  background: transparent;
+  color: $FOREGROUND;
+  border: 0;
+  border-radius: 16px;
+  margin: 4px;
+  padding: 6px;
+}
+
+button:hover {
+  background-color: $DOCK_HOVER;
+}
+
+button:checked,
+button:active {
+  background-color: $DOCK_ACTIVE;
+}
+
+image {
+  padding: 2px;
+}
+EOF
+
+if command -v nwg-dock-hyprland >/dev/null 2>&1; then
+  pkill -f '^nwg-dock-hyprland( |$)' 2>/dev/null || true
+  nohup nwg-dock-hyprland -d -hd 80 -p bottom -i 20 -mb 8 >/dev/null 2>&1 &
+else
+  printf 'Generated %s. Install nwg-dock-hyprland to start the dock.\n' "$STYLE_FILE" >&2
+fi

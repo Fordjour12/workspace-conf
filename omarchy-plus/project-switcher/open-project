@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_line="${1:-}"
+
+if [[ -z "$project_line" ]]; then
+  notify-send "Project Switcher" "No project selected" 2>/dev/null || true
+  exit 1
+fi
+
+IFS='|' read -r name dir workspace dev_command local_url extra_url mode <<<"$project_line"
+dir="${dir/#\~/$HOME}"
+mode="${mode:-default}"
+
+if [[ ! -d "$dir" ]]; then
+  notify-send "Project Switcher" "Folder not found: $dir" 2>/dev/null || true
+  exit 1
+fi
+
+notify-send "Project Switcher" "Opening $name" 2>/dev/null || true
+
+if command -v hyprctl >/dev/null 2>&1 && [[ -n "${workspace:-}" ]]; then
+  hyprctl dispatch workspace "$workspace" >/dev/null 2>&1 || true
+fi
+
+sleep 0.2
+
+if command -v zeditor >/dev/null 2>&1; then
+  zeditor "$dir" >/dev/null 2>&1 &
+elif command -v zed >/dev/null 2>&1; then
+  zed "$dir" >/dev/null 2>&1 &
+else
+  notify-send "Project Switcher" "Zed/Zeditor not found" 2>/dev/null || true
+fi
+
+sleep 0.2
+
+open_terminal() {
+  local command="${1:-}"
+
+  if command -v ghostty >/dev/null 2>&1; then
+    if [[ -n "$command" ]]; then
+      ghostty --working-directory="$dir" -e sh -lc "$command; exec ${SHELL:-bash}" >/dev/null 2>&1 &
+    else
+      ghostty --working-directory="$dir" >/dev/null 2>&1 &
+    fi
+  elif command -v kitty >/dev/null 2>&1; then
+    if [[ -n "$command" ]]; then
+      kitty --working-directory "$dir" sh -lc "$command; exec ${SHELL:-bash}" >/dev/null 2>&1 &
+    else
+      kitty --working-directory "$dir" >/dev/null 2>&1 &
+    fi
+  elif command -v alacritty >/dev/null 2>&1; then
+    if [[ -n "$command" ]]; then
+      alacritty --working-directory "$dir" -e sh -lc "$command; exec ${SHELL:-bash}" >/dev/null 2>&1 &
+    else
+      alacritty --working-directory "$dir" >/dev/null 2>&1 &
+    fi
+  elif command -v xdg-terminal-exec >/dev/null 2>&1; then
+    xdg-terminal-exec --dir="$dir" >/dev/null 2>&1 &
+  else
+    notify-send "Project Switcher" "No terminal found" 2>/dev/null || true
+  fi
+}
+
+open_terminal
+
+if [[ "$mode" != "default" && -n "${dev_command:-}" ]]; then
+  sleep 0.2
+  open_terminal "$dev_command"
+fi
+
+if command -v t3code >/dev/null 2>&1; then
+  sleep 0.2
+  t3code "$dir" >/dev/null 2>&1 &
+fi
+
+if [[ -n "${local_url:-}" ]]; then
+  sleep 0.2
+  xdg-open "$local_url" >/dev/null 2>&1 &
+fi
+
+if [[ -n "${extra_url:-}" ]]; then
+  sleep 0.1
+  xdg-open "$extra_url" >/dev/null 2>&1 &
+fi
